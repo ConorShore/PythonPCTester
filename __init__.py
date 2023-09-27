@@ -16,10 +16,11 @@ import keyboard
 # For system info
 import platform
 
-#audio test
-import pysine
-import sounddevice as sd
+# audio test
+#import pysine
 from scipy.io.wavfile import write
+import pyaudio
+import wave
 
 
 gauth = GoogleAuth()
@@ -72,7 +73,6 @@ def keyboardTest(stdscr):
 
     testResult.setName("Keyboard Test")
     while True:
-
         stdscr.refresh()
         keyIn = keyboard.read_key()
         keyInstr = str(keyIn)
@@ -92,27 +92,38 @@ def keyboardTest(stdscr):
                 testResult.setPassed(True)
                 break
 
-    testResult.setData("Keys pressed:" + \
-        str(list(keysAlreadyRead.keys())) + "\n" + \
-        "Keys not pressed: " + str(list(missingKeys)) + "\n")
+    testResult.setData("Keys pressed:" +
+                       str(list(keysAlreadyRead.keys())) + "\n" +
+                       "Keys not pressed: " + str(list(missingKeys)) + "\n")
 
     return testResult
+
 
 def audioTest(stdscr):
     hello = 0
 
+from ctypes import *
+from contextlib import contextmanager
+import pyaudio
+
+ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+
+def py_error_handler(filename, line, function, err, fmt):
+    pass
+
+c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
+
+@contextmanager
+def noalsaerr():
+    asound = cdll.LoadLibrary('libasound.so')
+    asound.snd_lib_error_set_handler(c_error_handler)
+    yield
+    asound.snd_lib_error_set_handler(None)
 
 def main(stdscr):
 
-    sampleRate = 44100  # Sample rate
-    seconds = 3  # Duration of recording
-    myrecording = sd.rec(int(seconds * sampleRate), samplerate=sampleRate, channels=1)
-    pysine.sine(frequency=440.0, duration=1.0) 
-    sd.wait() # wait for recording to finish
-    write('output.wav', sampleRate, myrecording)  # Save as WAV file 
-    while True:
-        pass
     
+
     # Clear screen
     stdscr.clear()
     stdscr.addstr(0, 0, "Welcome to Conor's PC test tool")
@@ -125,5 +136,70 @@ def main(stdscr):
     while True:
         pass
 
+
+# sampleRate = 44100  # Sample rate
+# seconds = 3  # Duration of recording
+# myrecording = sd.rec(int(seconds * sampleRate), samplerate=sampleRate, channels=2)
+# pysine.sine(frequency=440.0, duration=1.0)
+# sd.wait() # wait for recording to finish
+# write('output.wav', sampleRate, myrecording)  # Save as WAV file
+
+
+with noalsaerr():
+    audio = pyaudio.PyAudio()  # Create an interface to PortAudio
+
+# Ask the user what audio device to use for audio recording
+
+for index in range(audio.get_device_count()):
+    print("index " + str(index) + " " + str(audio.get_device_info_by_index(index)["name"]))
+print("Please enter the number which matches your audio device, it's usually 0")
+inputIndex = input()
+info = audio.get_device_info_by_index(int(inputIndex))
+
+#Check if sample rate exists on device
+
+if "defaultSampleRate" in info.keys():
+    fs = int(info["defaultSampleRate"])  # Record at 44100 samples per second
+else:
+    fs = 16000
+
+chunk = 1024  # Record in chunks of 1024 samples
+sample_format = pyaudio.paInt16  # 16 bits per sample
+channels = 1
+seconds = 3
+filename = "outputa.wav"
+
+print('Recording')
+
+stream = audio.open(format=sample_format,
+                channels=channels,
+                rate=fs,
+                frames_per_buffer=chunk,
+                input=True, input_device_index=2)
+
+frames = []  # Initialize array to store frames
+
+# Store data in chunks for 3 seconds
+for i in range(0, int(fs / chunk * seconds)):
+    data = stream.read(chunk)
+    frames.append(data)
+
+# Stop and close the stream
+stream.stop_stream()
+stream.close()
+# Terminate the PortAudio interface
+audio.terminate()
+
+print('Finished recording')
+
+# Save the recorded data as a WAV file
+wf = wave.open(filename, 'wb')
+wf.setnchannels(channels)
+wf.setsampwidth(audio.get_sample_size(sample_format))
+wf.setframerate(fs)
+wf.writeframes(b''.join(frames))
+wf.close()
+
+exit()
 
 curses.wrapper(main)
