@@ -1,3 +1,8 @@
+'''
+Deps
+portaudio19-dev
+'''
+
 # UI imports
 import curses
 
@@ -10,6 +15,12 @@ import keyboard
 
 # For system info
 import platform
+
+#audio test
+import pysine
+import sounddevice as sd
+from scipy.io.wavfile import write
+
 
 gauth = GoogleAuth()
 drive = GoogleDrive(gauth)
@@ -52,10 +63,8 @@ def printtestCollector(screen, testResult: testCollector):
 
 
 def keyboardTest(stdscr):
-    # targetKeys = ['enter', 'esc', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'unknown', 'scroll lock', 'pause', 'page up', 'home', 'insert', 'delete', 'end', 'page down', 'up', 'left', 'down', 'right', '`', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    #               '0', '−', '=', 'backspace', 'tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', 'caps lock', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", '#', 'shift', '|', 'z', '\\', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'ctrl', 'alt', 'alt gr', 'menu', 'space']
-
-    targetKeys = ['a']
+    targetKeys = ['enter', 'esc', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12', 'unknown', 'scroll lock', 'pause', 'page up', 'home', 'insert', 'delete', 'end', 'page down', 'up', 'left', 'down', 'right', '`', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                  '0', '−', '=', 'backspace', 'tab', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', 'caps lock', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'", '#', 'shift', '|', 'z', '\\', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 'ctrl', 'alt', 'alt gr', 'menu', 'space']
 
     keysAlreadyRead = dict()
     missingKeys = list()
@@ -89,9 +98,21 @@ def keyboardTest(stdscr):
 
     return testResult
 
+def audioTest(stdscr):
+    hello = 0
+
 
 def main(stdscr):
 
+    sampleRate = 44100  # Sample rate
+    seconds = 3  # Duration of recording
+    myrecording = sd.rec(int(seconds * sampleRate), samplerate=sampleRate, channels=1)
+    pysine.sine(frequency=440.0, duration=1.0) 
+    sd.wait() # wait for recording to finish
+    write('output.wav', sampleRate, myrecording)  # Save as WAV file 
+    while True:
+        pass
+    
     # Clear screen
     stdscr.clear()
     stdscr.addstr(0, 0, "Welcome to Conor's PC test tool")
