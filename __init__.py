@@ -19,8 +19,12 @@ import platform
 # audio test
 #import pysine
 from scipy.io.wavfile import write
+from scipy.io import wavfile as wav
 import pyaudio
 import wave
+import numpy as np
+
+
 
 
 gauth = GoogleAuth()
@@ -98,6 +102,38 @@ def keyboardTest(stdscr):
 
     return testResult
 
+def detectPitch(Filename: str):
+    from aubio import source, pitch
+
+    #Pitch detection
+    win_s = 8192
+    hop_s = 2048
+
+    s = source(filename, fs, hop_s)
+    samplerate = s.samplerate
+    tolerance = 0.8
+
+    pitch_o = pitch("yin", win_s, hop_s, samplerate)
+    pitch_o.set_unit("hertz")
+    pitch_o.set_tolerance(tolerance)
+
+    pitches = []
+    confidences = []
+
+    total_frames = 0
+    while True:
+        samples, read = s()
+        pitch = pitch_o(samples)[0]
+        confidence = pitch_o.get_confidence()
+        if confidence > 0.2:
+            pitches += [pitch]
+            confidences += [confidence]
+            total_frames += read
+        print("%f %f %f" % (total_frames / float(samplerate), pitch, confidence))
+        if read < hop_s: break
+
+    print("Average frequency = " + str(np.array(pitches).mean()) + " hz")
+    return np.array(pitches).mean()
 
 def audioTest(stdscr):
     hello = 0
@@ -153,9 +189,9 @@ with noalsaerr():
 for index in range(audio.get_device_count()):
     print("index " + str(index) + " " + str(audio.get_device_info_by_index(index)["name"]))
 print("Please enter the number which matches your audio device, it's usually 0")
-inputIndex = input()
+inputIndex = int(input())
 info = audio.get_device_info_by_index(int(inputIndex))
-
+print(info)
 #Check if sample rate exists on device
 
 if "defaultSampleRate" in info.keys():
@@ -163,10 +199,11 @@ if "defaultSampleRate" in info.keys():
 else:
     fs = 16000
 
+print("Sample freq = " + str(info["defaultSampleRate"]))
 chunk = 1024  # Record in chunks of 1024 samples
 sample_format = pyaudio.paInt16  # 16 bits per sample
 channels = 1
-seconds = 3
+seconds = 1
 filename = "outputa.wav"
 
 print('Recording')
@@ -175,7 +212,7 @@ stream = audio.open(format=sample_format,
                 channels=channels,
                 rate=fs,
                 frames_per_buffer=chunk,
-                input=True, input_device_index=2)
+                input=True, input_device_index=inputIndex)
 
 frames = []  # Initialize array to store frames
 
@@ -192,6 +229,8 @@ audio.terminate()
 
 print('Finished recording')
 
+totalSamples=fs*seconds
+
 # Save the recorded data as a WAV file
 wf = wave.open(filename, 'wb')
 wf.setnchannels(channels)
@@ -199,6 +238,10 @@ wf.setsampwidth(audio.get_sample_size(sample_format))
 wf.setframerate(fs)
 wf.writeframes(b''.join(frames))
 wf.close()
+
+
+detectPitch(filename)
+
 
 exit()
 
